@@ -94,6 +94,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--brand-01);outli
 .sug fieldset{border:0;margin:0;padding:0;display:grid;gap:4px}
 .sug legend{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--dark-1);margin-bottom:2px;padding:0}
 .sug label{display:flex;gap:8px;align-items:baseline;font-size:13px;cursor:pointer;overflow-wrap:anywhere}
+.sug label input{accent-color:var(--brand-01)}
 .sug label.off{opacity:.45;cursor:not-allowed}
 .sug .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .btn.sm{padding:6px 12px;font-size:12px}
@@ -138,6 +139,18 @@ footer .sig{color:var(--brand-01);font-weight:700}
   .notes-in{padding:8px 8px 12px 16px}
 }
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
+/* elementos da versão com conta única / lista única / sem composição */
+.modo-b-row{display:flex;align-items:center;gap:8px;font-size:13px}
+.modo-b-row label{display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--dark-3)}
+.modo-b-row input[type=checkbox]{width:16px;height:16px;margin:0;accent-color:var(--brand-01);cursor:pointer}
+.drop.disabled-drop{opacity:.45;pointer-events:none;cursor:not-allowed}
+.banner.warn-banner{background:var(--warning-bg);border-color:var(--warning)}
+.banner.warn-banner b{color:#8A5300}
+.banner.ok-banner{background:var(--positive-bg);border-color:var(--positive)}
+.banner.ok-banner b{color:var(--positive)}
+.alerts li.erro{border-left-color:var(--negative)}
+.alerts li.div-cred{border-left-color:#99002E;background:#FCE8EE}
+.notes-in tr.div-row td{background:#FCE8EE;color:#99002E;font-weight:700}
 </style>
 </head>
 <body>
@@ -152,7 +165,7 @@ footer .sig{color:var(--brand-01);font-weight:700}
 <main class="page">
   <div class="page-header">
     <h1 class="page-title">Conciliador JBC</h1>
-    <p class="page-desc">Envie a composição do ano anterior e o razão auxiliar do ano. A ferramenta monta a nova composição nota a nota, confere os totais e aponta o que precisa ser apurado. Os arquivos são lidos só neste navegador e não são enviados para nenhum servidor.</p>
+    <p class="page-desc">Envie a composição do ano anterior e o razão auxiliar. A ferramenta monta a nova composição nota a nota, confere os totais e aponta o que precisa ser apurado. Os arquivos são lidos só neste navegador.</p>
   </div>
 
   <section aria-labelledby="h-arq">
@@ -162,6 +175,9 @@ footer .sig{color:var(--brand-01);font-weight:700}
       <button type="button" id="mFor" aria-pressed="false">Fornecedores</button>
     </div>
     <p class="rule" id="regra"></p>
+    <div class="modo-b-row">
+      <label><input type="checkbox" id="chkModoB"> Sem composição anterior (parte do saldo anterior do razão)</label>
+    </div>
     <div class="drops">
       <label class="drop" id="dropComp">
         <input type="file" id="fileComp" accept=".xls,.xlsx">
@@ -172,18 +188,21 @@ footer .sig{color:var(--brand-01);font-weight:700}
       <label class="drop" id="dropRaz">
         <input type="file" id="fileRaz" accept=".xls,.xlsx">
         <span class="t">Razão auxiliar do ano</span>
-        <span class="d">Razão auxiliar exportado do Mastermaq (blocos "CLIENTE/FORNECEDOR :").</span>
+        <span class="d" id="descRaz">Razão auxiliar exportado do Mastermaq. Aceita blocos "CLIENTE/FORNECEDOR :" ou conta única (histórico com nº da NF).</span>
         <span class="f" id="infoRaz">Clique ou arraste o arquivo .xls/.xlsx</span>
       </label>
     </div>
     <div class="actions">
       <button class="btn primary" id="btnRun" disabled>Conciliar</button>
       <button class="btn ghost" id="btnXls">Baixar Excel</button>
-      <span class="msg" id="msg" role="status"></span>
+      <span class="msg" id="msg" role="status" aria-live="polite"></span>
     </div>
   </section>
 
-  <div class="banner" id="demo"><b>Exemplo fictício.</b> Os números abaixo são de empresas inventadas, só para mostrar o resultado. Carregue os dois arquivos e clique em Conciliar.</div>
+  <div class="banner" id="demo"><b>Exemplo fictício.</b> Os números abaixo são de empresas inventadas, só para mostrar o resultado. Carregue os arquivos e clique em Conciliar.</div>
+  <div class="banner warn-banner" id="bannerModoB" hidden><b>Sem composição anterior.</b> A conciliação parte do saldo anterior informado no razão auxiliar.</div>
+  <div class="banner" id="bannerContaUnica" hidden><b>Razão em conta única.</b> O razão não tem blocos "CLIENTE/FORNECEDOR :" — o cruzamento será feito pelo número da NF no histórico.</div>
+  <div class="banner ok-banner" id="bannerListaUnica" hidden><b>Composição em lista única + razão em conta única.</b> Saldo de cada NF = saldo anterior (composição) + débitos do razão − créditos do razão.</div>
 
   <section aria-labelledby="h-conf">
     <div class="sec-head"><h2 id="h-conf">Conferência</h2><span class="hint" id="empresa"></span></div>
@@ -208,7 +227,7 @@ footer .sig{color:var(--brand-01);font-weight:700}
   <section aria-labelledby="h-cli">
     <div class="sec-head"><h2 id="h-cli">Clientes</h2><span class="hint">Clique em uma linha para ver as notas em aberto.</span></div>
     <div class="chips" id="chips" role="group" aria-label="Filtrar por situação"></div>
-    <div class="tools"><input id="busca" type="search" placeholder="Buscar por nome ou CNPJ" aria-label="Buscar por nome ou CNPJ"></div>
+    <div class="tools"><input id="busca" type="search" placeholder="Buscar por nome, CNPJ ou nº da NF" aria-label="Buscar por nome, CNPJ ou número da NF"></div>
     <div class="tbl"><table>
       <thead><tr><th>Situação</th><th>CNPJ/CPF</th><th id="thNome">Cliente</th><th class="n">Composição ant.</th><th class="n" id="thEmi">Débitos (notas)</th><th class="n" id="thBx">Créditos (receb.)</th><th class="n">Saldo final</th><th class="n">Notas</th></tr></thead>
       <tbody id="tbody"></tbody>
@@ -256,17 +275,31 @@ const Core = (() => {
       || h.match(/\bNF[\s.:º°]*N?[º°.]?\s*0*(\d+)/i) || h.match(/NOTA\s+FISCAL\s*(?:N[º°.O]?\s*)?0*(\d+)/i);
     return m ? parseInt(m[1], 10) : null;
   }
-  const norm = t => s(t).toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+  /* --- nfDoHistorico: extrai nº da NF do histórico de conta única --- */
+  function nfDoHistorico(h) {
+    const hu = s(h).toUpperCase().trim();
+    // histórico só número: "55426.0" ou "55426"
+    let m = hu.match(/^(\d{4,6})(?:\.0)?$/);
+    if (m) return parseInt(m[1], 10);
+    // "55426 SALDO" — saldo residual de NF parcialmente baixada
+    m = hu.match(/^(\d{4,6})\s+SALDO\b/);
+    if (m) return parseInt(m[1], 10);
+    // "consumidor 55382" / número no fim
+    m = hu.match(/\b(\d{4,6})\s*$/);
+    if (m) return parseInt(m[1], 10);
+    // "NOTA FISCAL 000055386" / "NUMERO 000055391" / "NF 55386"
+    m = hu.match(/(?:NUMERO|NOTA FISCAL|NF)\s+0*(\d{4,6})/);
+    if (m) return parseInt(m[1], 10);
+    return null;
+  }
+  const norm = t => s(t).toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
   const fmt = x => (x < 0 ? '-' : '') + 'R$ ' + Math.abs(x).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-  /* --- utilidades de layout (as colunas mudam de um relatório para outro) --- */
-  const up = v => s(v).toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const up = v => s(v).toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const isDoc = v => { const t = s(v); if (!/^[\d.\/\-\s]+$/.test(t)) return false; const n = t.replace(/\D/g, '').length; return n === 11 || n === 14; };
   const lastIdx = r => { for (let k = r.length - 1; k >= 0; k--) if (s(r[k]) !== '') return k; return -1; };
   const findCol = (r, re) => r.findIndex(v => re.test(up(v)));
   const isPageHeader = r => { const l = up(r.join(' ')); return /FOLHA:|RAZAO AUXILIAR|MASTERMAQ/.test(l) || up(r[0]) === 'DIA'; };
 
-  /* --- composição anterior: rows = matriz [linha][coluna]; yellow(i, col) -> bool --- */
   function parseComp(rows, yellow) {
     const info = { empresa: '', cnpj: '', periodo: '' };
     let valCol = -1, salCol = -1, histCol = 1;
@@ -313,7 +346,41 @@ const Core = (() => {
     return { info, blocos, total, layout: { valCol, salCol, histCol } };
   }
 
-  /* --- razão auxiliar Mastermaq: parser por blocos, colunas lidas do cabeçalho --- */
+  /* --- parseCompListaUnica: composição no formato DATA | NF (col B) | VALOR --- */
+  function parseCompListaUnica(rows) {
+    // Cabeçalho: linha 0 com DATA / HISTÓRICO / VALOR
+    // Linhas de dados: col A = data (texto ou serial), col B = nº NF (número ou "NNNNN SALDO"), col C = valor
+    // Última linha sem data e sem histórico = total (ignorar)
+    const itens = [];
+    let total = null;
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i] || [];
+      const colA = s(r[0]), colB = s(r[1]), colC = s(r[2]);
+      if (!colA && !colB && colC) { total = br(r[2]); continue; } // linha de total
+      if (!colB) continue;
+      // extrai nº NF do histórico (ex: "54936.0" → 54936, "54536 SALDO" → 54536)
+      const nf = nfDoHistorico(colB);
+      if (nf === null) continue; // ignora se não conseguir extrair
+      const val = br(r[2]);
+      if (!val && val !== 0) continue;
+      const temSaldo = /SALDO/i.test(colB);
+      itens.push({
+        dia: fdate(r[0]),
+        hist: String(nf),           // armazena só o número como histórico
+        nfRaw: colB,                // texto original
+        valor: val,
+        key: nf,
+        orig: 'ant',
+        amarelo: false,
+        baixas: 0,
+        obs: temSaldo ? 'Saldo parcial da NF (parte já baixada)' : ''
+      });
+    }
+    const saldo = r2(itens.reduce((a, x) => a + x.valor, 0));
+    const bloco = { cnpj: 'LISTA-UNICA', nome: 'Composição anterior', itens, saldo };
+    return { info: { empresa: '', cnpj: '', periodo: '' }, blocos: [bloco], total: total || saldo, modeloCompLista: true };
+  }
+
   function parseRazao(rows, modo) {
     const sg = modo === 'fornecedor' ? -1 : 1;
     const info = { empresa: '', periodo: '' };
@@ -357,11 +424,11 @@ const Core = (() => {
         const temD = s(q[debCol]) !== '', temC = s(q[credCol]) !== '';
         if (isDate(q[0]) && (temD || temC)) {
           let d = temD ? br(q[debCol]) : 0, c = temC ? br(q[credCol]) : 0;
-          if (sg < 0) { const t = d; d = c; c = t; }  // fornecedor: crédito = NF (emissão), débito = pagamento (baixa)
+          if (sg < 0) { const t = d; d = c; c = t; }
           b.deb += d; b.cred += c; b.lanc.push({ dia: fdate(q[0]), hist: s(q[histCol]), deb: d, cred: c });
           ultimo = 'lanc'; continue;
         }
-        if (!s(q[0]) && !temD && !temC) {   // linha de continuação (nome ou histórico quebrado)
+        if (!s(q[0]) && !temD && !temC) {
           const txt = q.slice(1, debCol).map(s).filter(v => v && v !== '-').join(' ');
           if (!txt) continue;
           if (ultimo === 'cab') b.nome = (b.nome + ' ' + txt).trim();
@@ -375,12 +442,256 @@ const Core = (() => {
     return { info, blocos, contaAnt, contaAtual, layout: { debCol, credCol, histCol } };
   }
 
-  /* --- conciliação --- */
+  /* --- parseRazaoContaUnica: conta única sem blocos CLIENTE/FORNECEDOR --- */
+  /* Suporta: "DÉBITO" / "DÉBITO MÊS", "CRÉDITO" / "CRÉDITO MÊS",            */
+  /* saldo anterior na linha "CONTA :" (col 10) ou "SALDO ANTERIOR DA CONTA",  */
+  /* saldo atual em "SALDO ATUAL:" ou "SALDO ATUAL DA CONTA".                  */
+  function parseRazaoContaUnica(rows, modo) {
+    const sg = modo === 'fornecedor' ? -1 : 1;
+    const info = { empresa: '', periodo: '', nomeConta: '' };
+    let debCol = -1, credCol = -1, histCol = -1;
+    // Aceita "DEBITO", "DEBITO MES", "DEBITO PERIODO" etc. via startsWith
+    for (let i = 0; i < Math.min(rows.length, 30) && debCol < 0; i++) {
+      const r = rows[i] || [];
+      const d = r.findIndex(v => /^DEBITO/.test(up(v)));
+      const c = r.findIndex(v => /^CREDITO/.test(up(v)));
+      if (d >= 0 && c >= 0) {
+        debCol = d; credCol = c;
+        const h = r.findIndex(v => /^HIST/.test(up(v)));
+        histCol = h >= 0 ? h : Math.min(d, c) - 1;
+      }
+    }
+    if (debCol < 0) throw new Error('Não encontrei colunas DÉBITO e CRÉDITO no razão.');
+    let contaAnt = null, contaAtual = null;
+    const lancamentos = [];
+    let coletando = true;
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i] || []; const linha = up(r.join(' '));
+      // Empresa e período — aceita "RAZÃO ANALÍTICO", "RAZÃO AUXILIAR" etc.
+      if (!info.periodo && (/RAZAO/.test(linha) || /ANALITICO/.test(linha))) {
+        const vals = r.map(s).filter(v => v && !/^Folha/i.test(v));
+        if (vals.length) info.periodo = vals.join(' ').replace(/\s+/g, ' ');
+      }
+      if (!info.empresa && /FOLHA/.test(linha)) {
+        const vals = r.map(s).filter(v => v && !/^Folha/i.test(v) && !/^\d+$/.test(v));
+        if (vals.length) info.empresa = vals[0];
+      }
+      // Saldo anterior: linha "CONTA :" com o saldo na última coluna não vazia
+      if (/^CONTA\s*:/.test(up(r[0])) && contaAnt === null) {
+        if (r[2]) info.nomeConta = s(r[2]);
+        // saldo anterior pode estar em "SALDO ANTERIOR :" na mesma linha
+        const sidx = r.findIndex(v => /SALDO ANTERIOR/.test(up(v)));
+        const k = lastIdx(r);
+        if (k >= 0) contaAnt = sg * br(r[k]);
+      }
+      // Saldo anterior alternativo: linha "SALDO ANTERIOR DA CONTA"
+      if (/SALDO ANTERIOR DA CONTA/.test(linha) && contaAnt === null) {
+        const k = lastIdx(r); if (k >= 0) contaAnt = sg * br(r[k]);
+      }
+      // Parar coleta de lançamentos em linha "TOTAIS:" (ignorar SUB-TOTAL que é acumulador mensal)
+      if (/^TOTAIS[:\s]/.test(up(r.join(' ')).trim()) || r.some(v => /^TOTAIS[:\s]/.test(up(v).trim()))) { coletando = false; continue; }
+      // Saldo atual: "SALDO ATUAL" (com ou sem DA CONTA)
+      if (/SALDO ATUAL/.test(linha)) {
+        const k = lastIdx(r); if (k >= 0) contaAtual = sg * br(r[k]);
+        break;
+      }
+      // Lançamentos com data
+      if (coletando && isDate(r[0])) {
+        const temD = s(r[debCol]) !== '', temC = s(r[credCol]) !== '';
+        if (temD || temC) {
+          let d = temD ? br(r[debCol]) : 0, c = temC ? br(r[credCol]) : 0;
+          if (sg < 0) { const t = d; d = c; c = t; }
+          const hist = histCol >= 0 ? s(r[histCol]) : '';
+          lancamentos.push({ dia: fdate(r[0]), hist, deb: d, cred: c });
+        }
+      }
+    }
+    return { info, lancamentos, contaAnt, contaAtual, modeloConta: true };
+  }
+
+  /* --- conciliarContaUnica: conciliação para modelo conta única (sem CNPJ) --- */
+  function conciliarContaUnica(razContaUnica, modo) {
+    const alertas = [];
+    const fmt2 = fmt;
+    const { lancamentos, contaAnt, contaAtual } = razContaUnica;
+    // agrupar por NF
+    const porNF = new Map(); // nf -> { deb, cred, lancDeb:[], lancCred:[] }
+    const semNF = [];
+    lancamentos.forEach(l => {
+      if (l.deb) {
+        const nf = nfDoHistorico(l.hist);
+        if (nf !== null) {
+          if (!porNF.has(nf)) porNF.set(nf, { nf, deb: 0, cred: 0, lancDeb: [], lancCred: [] });
+          const e = porNF.get(nf); e.deb += l.deb; e.lancDeb.push(l);
+        } else {
+          semNF.push({ ...l, tipo: 'deb' });
+        }
+      }
+      if (l.cred) {
+        const nf = nfDoHistorico(l.hist);
+        if (nf !== null) {
+          if (!porNF.has(nf)) porNF.set(nf, { nf, deb: 0, cred: 0, lancDeb: [], lancCred: [] });
+          const e = porNF.get(nf); e.cred += l.cred; e.lancCred.push(l);
+        } else {
+          semNF.push({ ...l, tipo: 'cred' });
+        }
+      }
+    });
+    const itens = [];
+    porNF.forEach(e => {
+      const saldo = r2(e.deb - e.cred);
+      const primDeb = e.lancDeb[0] || {};
+      const obs_parts = [];
+      let divCred = false;
+      if (e.deb && !e.cred) {
+        // crédito no razão sem débito correspondente = divergência
+        // (quando deb=0 mas cred>0 -- na conta única, débito = NF emitida, crédito = recebimento)
+      }
+      if (!e.deb && e.cred) {
+        divCred = true;
+        obs_parts.push('DIVERGÊNCIA: crédito de ' + fmt2(e.cred) + ' sem débito correspondente (NF ' + e.nf + ') — apurar');
+      }
+      if (e.deb && e.cred && !eq(saldo, 0)) obs_parts.push('Baixas parciais — saldo remanescente ' + fmt2(saldo));
+      itens.push({
+        id: 'cu#' + e.nf,
+        dia: primDeb.dia || (e.lancCred[0] || {}).dia || '',
+        hist: primDeb.hist || (e.lancCred[0] || {}).hist || 'NF ' + e.nf,
+        nf: e.nf,
+        deb: r2(e.deb),
+        cred: r2(e.cred),
+        saldo: r2(saldo),
+        key: e.nf,
+        orig: 'atual',
+        amarelo: false,
+        baixas: r2(e.cred),
+        aberto: r2(saldo),
+        obs: obs_parts.join('; '),
+        divCred
+      });
+    });
+    // itens sem NF identificada
+    semNF.forEach((l, i) => {
+      itens.push({
+        id: 'cu#semNF#' + i,
+        dia: l.dia, hist: l.hist,
+        nf: null,
+        deb: l.tipo === 'deb' ? l.deb : 0,
+        cred: l.tipo === 'cred' ? l.cred : 0,
+        saldo: l.tipo === 'deb' ? l.deb : -l.cred,
+        key: null, orig: 'atual', amarelo: false, baixas: 0,
+        aberto: l.tipo === 'deb' ? l.deb : -l.cred,
+        obs: 'APURAR: lançamento sem nº de NF identificável no histórico',
+        divCred: false
+      });
+    });
+    // divergências crédito-sem-débito
+    const divs = itens.filter(x => x.divCred);
+    if (divs.length) {
+      alertas.push({ tipo: 'nota', texto: divs.length + ' NF(s) com crédito no razão sem débito correspondente: ' + divs.map(x => 'NF ' + x.nf + ' (' + fmt(x.cred) + ')').join(', ') + ' — apurar se o débito foi lançado em outra conta.' });
+    }
+    const somaDeb = r2(lancamentos.reduce((a, l) => a + l.deb, 0));
+    const somaCred = r2(lancamentos.reduce((a, l) => a + l.cred, 0));
+    const somaAberto = r2(itens.reduce((a, x) => a + x.aberto, 0));
+    const calcConta = contaAnt !== null ? r2(contaAnt + somaDeb - somaCred) : null;
+    if (calcConta !== null && contaAtual !== null && !eq(calcConta, contaAtual)) {
+      alertas.push({ tipo: 'razao', texto: 'Razão conta única: ant. + débitos − créditos = ' + fmt(calcConta) + ' ≠ saldo atual ' + fmt(contaAtual) });
+    }
+    const conf = { compTotalArq: null, somaComp: 0, contaAnt, somaRazAnt: contaAnt || 0, somaDeb, somaCred, contaAtual, somaNotas: somaAberto, calcConta };
+    const fakeCliente = { cnpj: 'CONTA-UNICA', nome: 'Conta Única', compSaldo: null, razAnt: contaAnt, deb: somaDeb, cred: somaCred, final: contaAtual, status: 'PENDENTES', obs: [], itens };
+    return { clientes: [fakeCliente], fora: [], conf, alertas, aceites: [], modeloConta: true };
+  }
+
+  /* --- conciliarComListaUnica: composição lista única × razão conta única --- */
+  function conciliarComListaUnica(comp, razContaUnica, modo) {
+    const alertas = [];
+    const { lancamentos, contaAnt, contaAtual } = razContaUnica;
+    // mapa NF → item da composição anterior
+    const compPorNF = new Map();
+    (comp.blocos[0] || { itens: [] }).itens.forEach(x => { if (x.key !== null) compPorNF.set(x.key, { ...x }); });
+    // agrupar lançamentos do razão por NF
+    const porNF = new Map();
+    const semNF = [];
+    lancamentos.forEach(l => {
+      const nf = nfDoHistorico(l.hist);
+      if (nf !== null) {
+        if (!porNF.has(nf)) porNF.set(nf, { nf, deb: 0, cred: 0, lancDeb: [], lancCred: [] });
+        const e = porNF.get(nf);
+        if (l.deb) { e.deb = r2(e.deb + l.deb); e.lancDeb.push(l); }
+        if (l.cred) { e.cred = r2(e.cred + l.cred); e.lancCred.push(l); }
+      } else {
+        semNF.push(l);
+      }
+    });
+    const itens = [];
+    const todasNFs = new Set([...compPorNF.keys(), ...porNF.keys()]);
+    todasNFs.forEach(nf => {
+      const ant = compPorNF.get(nf) || null;   // item da composição anterior
+      const raz = porNF.get(nf) || null;        // lançamentos do razão
+      const antVal = ant ? ant.valor : 0;
+      const deb = raz ? raz.deb : 0;
+      const cred = raz ? raz.cred : 0;
+      // saldo = saldo anterior + débito do período − crédito (recebimentos)
+      const aberto = r2(antVal + deb - cred);
+      const primDia = (raz && raz.lancDeb[0] || raz && raz.lancCred[0] || ant || {}).dia || '';
+      const obs_parts = [];
+      let divCred = false;
+      if (!raz && ant) obs_parts.push('Sem movimento no período — saldo anterior mantido');
+      if (raz && !raz.deb && raz.cred && !ant) { divCred = true; obs_parts.push('DIVERGÊNCIA: crédito de ' + fmt(raz.cred) + ' sem débito correspondente — apurar'); }
+      if (raz && raz.deb && raz.cred && !eq(aberto, 0)) obs_parts.push('Nota com baixa parcial — saldo remanescente ' + fmt(aberto));
+      const obs = obs_parts.join('; ');
+      itens.push({
+        id: 'clu#' + nf,
+        dia: ant ? ant.dia : primDia,
+        hist: String(nf),
+        nfRaw: ant ? ant.nfRaw : 'NF ' + nf,
+        nf, deb, cred, saldo: aberto,
+        key: nf, orig: ant ? 'ant' : 'atual',
+        amarelo: ant ? ant.amarelo : false,
+        baixas: r2(cred),
+        aberto,
+        obs,
+        divCred
+      });
+    });
+    // lançamentos sem NF identificada
+    semNF.forEach((l, i) => {
+      itens.push({
+        id: 'clu#semNF#' + i,
+        dia: l.dia, hist: l.hist, nfRaw: l.hist, nf: null,
+        deb: l.deb || 0, cred: l.cred || 0, saldo: (l.deb || 0) - (l.cred || 0),
+        key: null, orig: 'atual', amarelo: false, baixas: 0,
+        aberto: (l.deb || 0) - (l.cred || 0),
+        obs: 'APURAR: lançamento sem nº de NF identificável no histórico',
+        divCred: false
+      });
+    });
+    const divs = itens.filter(x => x.divCred);
+    if (divs.length) alertas.push({ tipo: 'nota', texto: divs.length + ' NF(s) com crédito sem débito: ' + divs.map(x => 'NF ' + x.nf + ' (' + fmt(x.cred) + ')').join(', ') + ' — apurar.' });
+    itens.filter(x => x.obs.startsWith('APURAR')).forEach(x => alertas.push({ tipo: 'nota', id: x.id, texto: 'NF ' + x.nf + ': ' + x.obs }));
+    const somaDeb = r2(lancamentos.reduce((a, l) => a + (l.deb || 0), 0));
+    const somaCred = r2(lancamentos.reduce((a, l) => a + (l.cred || 0), 0));
+    const somaComp = r2((comp.blocos[0] || { itens: [] }).itens.reduce((a, x) => a + x.valor, 0));
+    const somaAberto = r2(itens.reduce((a, x) => a + x.aberto, 0));
+    const calcConta = contaAnt !== null ? r2(contaAnt + somaDeb - somaCred) : null;
+    if (calcConta !== null && contaAtual !== null && !eq(calcConta, contaAtual))
+      alertas.push({ tipo: 'razao', texto: 'Razão: ant. + débitos − créditos = ' + fmt(calcConta) + ' ≠ saldo atual ' + fmt(contaAtual) });
+    if (comp.total !== null && !eq(comp.total, somaComp))
+      alertas.push({ tipo: 'comp', texto: 'Composição anterior: soma dos itens (' + fmt(somaComp) + ') ≠ total do arquivo (' + fmt(comp.total) + ').' });
+    const conf = { compTotalArq: comp.total, somaComp, contaAnt, somaRazAnt: contaAnt || 0, somaDeb, somaCred, contaAtual, somaNotas: somaAberto, calcConta };
+    const fakeCliente = { cnpj: 'LISTA-UNICA', nome: 'Composição Lista Única', compSaldo: somaComp, razAnt: contaAnt, deb: somaDeb, cred: somaCred, final: somaAberto, status: 'PENDENTES', obs: [], itens };
+    return { clientes: [fakeCliente], fora: [], conf, alertas, aceites: [], modeloConta: true, modeloCompLista: true };
+  }
+
+  /* --- conciliar (modelo padrão e Modo B) --- */
   function conciliar(comp, raz, modo) {
+    // Modo B: comp === null → partir do saldo anterior do razão
+    if (comp === null) {
+      // criar composição sintética apenas com saldo anterior da conta
+      comp = { info: { empresa: raz.info.empresa || '', cnpj: '' }, total: raz.contaAnt, blocos: [], layout: { valCol: 2, salCol: 3, histCol: 1 } };
+    }
     const alertas = [];
     const ent = modo === 'fornecedor' ? 'fornecedor' : 'cliente', Ent = ent[0].toUpperCase() + ent.slice(1);
     const baixaTxt = modo === 'fornecedor' ? 'pagamento' : 'recebimento';
-    // razão consolidado por CNPJ
     const R = new Map();
     raz.blocos.forEach(b => {
       const calc = b.saldoAnt + b.deb - b.cred;
@@ -389,11 +700,9 @@ const Core = (() => {
       x.saldoAnt += b.saldoAnt; x.deb += b.deb; x.cred += b.cred; x.saldoFinal += (b.saldoFinal !== null ? b.saldoFinal : calc);
       x.lanc.push(...b.lanc); x.nBlocos++; R.set(b.cnpj, x);
     });
-    // sinal da composição: se a maioria só bate com o sinal invertido, inverte
     { let ok = 0, inv = 0; comp.blocos.forEach(b => { const r = R.get(b.cnpj); if (!r || eq(b.saldo, 0)) return; if (eq(b.saldo, r.saldoAnt)) ok++; else if (eq(-b.saldo, r.saldoAnt)) inv++; });
       if (inv > ok) { comp.blocos.forEach(b => { b.saldo = -b.saldo; b.itens.forEach(x => x.valor = -x.valor); }); if (comp.total !== null) comp.total = -comp.total;
-        alertas.push({ tipo: 'comp', texto: `A composição anterior está com o sinal invertido em relação ao razão (saldo ${modo === 'fornecedor' ? 'credor' : 'devedor'} = positivo). Os valores foram lidos com o sinal trocado.` }); } }
-    // composição consolidada por CNPJ (resolve blocos sem cabeçalho)
+        alertas.push({ tipo: 'comp', texto: `A composição anterior está com o sinal invertido em relação ao razão. Os valores foram lidos com o sinal trocado.` }); } }
     const C = new Map(); const cnpjsComp = new Set(comp.blocos.filter(b => b.cnpj).map(b => b.cnpj));
     comp.blocos.forEach(b => {
       let k = b.cnpj, vinc = '';
@@ -402,8 +711,8 @@ const Core = (() => {
         const n = norm(b.nome);
         let hit = cand.filter(x => norm(x.nome) === n || norm(x.nome).includes(n) || n.includes(norm(x.nome)));
         if (hit.length !== 1) hit = cand.filter(x => eq(r2(x.saldoAnt), b.saldo));
-        if (hit.length === 1) { k = hit[0].cnpj; vinc = `Na composição anterior este ${ent} estava sem a linha de cabeçalho e sem CNPJ (linha ${b.linha}). Vinculado ao CNPJ ${k} do razão pelo nome/saldo — confirmar.`; }
-        else { k = 'SEM CNPJ – ' + b.nome; vinc = `Na composição anterior este ${ent} está sem a linha de cabeçalho e sem CNPJ (linha ${b.linha}); não foi possível vincular a um CNPJ do razão — apurar.`; }
+        if (hit.length === 1) { k = hit[0].cnpj; vinc = `Na composição anterior este ${ent} estava sem cabeçalho (linha ${b.linha}). Vinculado ao CNPJ ${k} — confirmar.`; }
+        else { k = 'SEM CNPJ – ' + b.nome; vinc = `${ent} sem cabeçalho (linha ${b.linha}), não foi possível vincular — apurar.`; }
         alertas.push({ tipo: 'comp', texto: `${b.nome}: ${vinc}` });
       }
       const x = C.get(k) || { cnpj: k, nome: b.nome, itens: [], saldo: 0, vinc: '' };
@@ -411,7 +720,6 @@ const Core = (() => {
     });
     const somaComp = r2([...C.values()].reduce((a, x) => a + x.saldo, 0));
     if (comp.total !== null && !eq(somaComp, comp.total)) alertas.push({ tipo: 'comp', texto: `Soma dos ${ent}s da composição anterior (${fmt(somaComp)}) difere da linha TOTAL do arquivo (${fmt(comp.total)}).` });
-
     const chaves = [...new Set([...C.keys(), ...R.keys()])].sort((a, b) => {
       const na = (C.get(a) || R.get(a)).nome.toUpperCase(), nb = (C.get(b) || R.get(b)).nome.toUpperCase();
       return na < nb ? -1 : na > nb ? 1 : 0;
@@ -423,11 +731,10 @@ const Core = (() => {
       let itens = [];
       if (c && r && eq(c.saldo, r.saldoAnt)) itens = c.itens.map(x => ({ ...x }));
       else if (c && r && !eq(r.saldoAnt, 0)) {
-        // composição e razão divergem, mas o cliente tem saldo no razão: mantém as notas e explicita a diferença
         itens = c.itens.map(x => ({ ...x }));
         const dif = r2(r.saldoAnt - c.saldo);
         itens.push({ dia: '', hist: 'DIFERENÇA ENTRE A COMPOSIÇÃO ANTERIOR E O SALDO ANTERIOR DO RAZÃO', valor: dif, key: null, orig: 'ajuste', amarelo: false, baixas: 0,
-          obs: `APURAR: composição anterior ${fmt(c.saldo)} × saldo anterior no razão ${fmt(r.saldoAnt)}. Linha incluída só para a composição fechar com o razão.` });
+          obs: `APURAR: composição anterior ${fmt(c.saldo)} × saldo anterior no razão ${fmt(r.saldoAnt)}.` });
       }
       else if (c) fora.push({ cnpj: k, nome, itens: c.itens, saldo: c.saldo, razAnt: r ? r.saldoAnt : null });
       const resumo = { cnpj: k, nome, compSaldo: c ? c.saldo : null, razAnt: r ? r2(r.saldoAnt) : null, deb: r ? r2(r.deb) : null, cred: r ? r2(r.cred) : null, final: r ? r2(r.saldoFinal) : null, obs: [] };
@@ -479,10 +786,9 @@ const Core = (() => {
       else if (eq(r.saldoFinal, 0)) resumo.status = 'QUITADOS';
       else if (eq(r.saldoFinal, c.saldo)) { resumo.status = 'SEM MOVIMENTO'; if (r.deb || r.cred) resumo.obs.push('Teve lançamentos, mas débitos = créditos.'); }
       else resumo.status = 'PENDENTES';
-      if (out.some(x => x.obs.startsWith('APURAR'))) resumo.obs.push(`APURAR: há ${baixaTxt} sem nota identificada (ver composição).`);
+      if (out.some(x => x.obs.startsWith('APURAR'))) resumo.obs.push(`APURAR: há ${baixaTxt} sem nota identificada.`);
       clientes.push({ ...resumo, itens: out });
     });
-    // recebimento avulso cuja NF está em aberto em outro cliente
     const dono = new Map();
     clientes.forEach(cl => cl.itens.forEach(x => { if (x.key !== null && !/^APURAR: (recebimento|pagamento)/.test(x.obs)) { if (!dono.has(x.key)) dono.set(x.key, new Set()); dono.get(x.key).add(cl.cnpj); } }));
     clientes.forEach(cl => cl.itens.forEach(x => {
@@ -497,15 +803,15 @@ const Core = (() => {
     const somaNotas = r2(clientes.reduce((a, cl) => a + cl.itens.reduce((b, x) => b + x.aberto, 0), 0));
     const conf = { compTotalArq: comp.total, somaComp, contaAnt: raz.contaAnt, somaRazAnt, somaDeb, somaCred, contaAtual: raz.contaAtual, somaNotas,
       calcConta: raz.contaAnt !== null ? r2(raz.contaAnt + somaDeb - somaCred) : null };
-    if (conf.contaAnt !== null && !eq(conf.contaAnt, somaRazAnt)) alertas.push({ tipo: 'razao', texto: `Razão: saldo anterior da conta (${fmt(conf.contaAnt)}) ≠ soma dos saldos anteriores por ${ent} (${fmt(somaRazAnt)}). Diferença de ${fmt(r2(conf.contaAnt - somaRazAnt))}.` });
-    if (conf.calcConta !== null && conf.contaAtual !== null && !eq(conf.calcConta, conf.contaAtual)) alertas.push({ tipo: 'razao', texto: `Razão: saldo anterior da conta + notas − baixas = ${fmt(conf.calcConta)}, mas o saldo atual informado é ${fmt(conf.contaAtual)}. Diferença de ${fmt(r2(conf.calcConta - conf.contaAtual))}.` });
-    fora.forEach(f => alertas.push({ tipo: 'comp', texto: `${f.cnpj} ${f.nome}: ${fmt(f.saldo)} na composição anterior ${f.razAnt === null ? `e o ${ent} não aparece no razão` : 'mas o razão abre com saldo anterior ' + fmt(f.razAnt)}. Itens listados fora do total.` }));
+    if (conf.contaAnt !== null && !eq(conf.contaAnt, somaRazAnt)) alertas.push({ tipo: 'razao', texto: `Razão: saldo anterior da conta (${fmt(conf.contaAnt)}) ≠ soma dos saldos anteriores por ${ent} (${fmt(somaRazAnt)}).` });
+    if (conf.calcConta !== null && conf.contaAtual !== null && !eq(conf.calcConta, conf.contaAtual)) alertas.push({ tipo: 'razao', texto: `Razão: saldo anterior da conta + notas − baixas = ${fmt(conf.calcConta)}, mas o saldo atual informado é ${fmt(conf.contaAtual)}.` });
+    fora.forEach(f => alertas.push({ tipo: 'comp', texto: `${f.cnpj} ${f.nome}: ${fmt(f.saldo)} na composição anterior ${f.razAnt === null ? `e o ${ent} não aparece no razão` : 'mas o razão abre com saldo anterior ' + fmt(f.razAnt)}.` }));
     clientes.forEach(cl => cl.itens.forEach(x => { if (x.obs.startsWith('APURAR')) alertas.push({ tipo: 'nota', id: x.id, cnpj: cl.cnpj, texto: `${cl.nome} — ${x.dia} ${x.hist} (${fmt(x.aberto)}): ${x.obs.replace(/^APURAR: /, '')}` }); }));
     return { clientes, fora, conf, alertas, aceites: [] };
   }
 
-  /* --- aplica as baixas aceitas pelo usuário (sem nº de NF, por valor idêntico) sobre uma cópia do resultado --- */
   function aplicarAceites(res, aceites, modo) {
+    if (res.modeloConta) return res; // conta única: sem aceites por enquanto
     const out = JSON.parse(JSON.stringify(res)); out.aceites = [];
     const quando = new Date().toLocaleString('pt-BR');
     Object.entries(aceites || {}).forEach(([aid, cid]) => {
@@ -523,7 +829,7 @@ const Core = (() => {
     out.alertas = out.alertas.filter(a => !(a.id && aceites && aceites[a.id]));
     return out;
   }
-  return { parseComp, parseRazao, conciliar, aplicarAceites, fmt, r2, eq, s };
+  return { parseComp, parseCompListaUnica, parseRazao, parseRazaoContaUnica, conciliar, conciliarContaUnica, conciliarComListaUnica, aplicarAceites, fmt, r2, eq, s, nfDoHistorico };
 })();
 
 
@@ -538,66 +844,104 @@ async function montarExcel(ExcelJS, res, meta) {
   const ano = meta.anoAtual || '';
   const forn = meta.modo === 'fornecedor';
   const ENT = forn ? 'FORNECEDOR' : 'CLIENTE', ENTS = forn ? 'FORNECEDORES' : 'CLIENTES';
-  const BRAND = '990024', PASTEL = 'DDEBF7', CLIFILL = forn ? null : 'F5F5F5';
+  // Paleta pastel (xlwt 41-47 equivalentes em ARGB)
+  const BRAND = '990024';
+  const HDR = 'BDD7EE';     // azul claro - cabeçalhos de seção
+  const VERDE = 'E2EFDA';   // verde-menta - quitadas
+  const AMARELO = 'FFFF99'; // amarelo-limão - totais/saldo
+  const PESSEGO = 'FCE4D6'; // pêssego - saldo credor / apurar
+  const ROSA = 'FFD7E3';    // rosa - divergência crédito-sem-débito
+  const LARANJA = 'FFF2CC'; // laranja suave - APURAR / avulsos
+  const AZULCINZA = 'D9E1F2'; // azul-cinza - títulos de seção
+  const CLIFILL = forn ? null : 'F5F5F5';
   const LBL_EMI = forn ? 'Créditos (notas)' : 'Débitos (notas)', LBL_BX = forn ? 'Débitos (pagamentos)' : 'Créditos (recebimentos)';
   const fim = '31/12/' + ano;
   const sum = (a, f) => a.reduce((t, x) => t + (f(x) || 0), 0);
 
-  /* ---- aba 1: composição nota a nota ---- */
+  /* ---- aba 1 ---- */
   const ws = wb.addWorksheet(ENTS + '-' + ano, { views: [{ state: 'frozen', ySplit: 5 }], pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
   ws.columns = [{ width: 13 }, { width: 62 }, { width: 16 }, { width: 17 }, { width: 80 }];
   [['Empresa:', meta.empresa], ['C.N.P.J.:', meta.cnpj], ['Período:', '01/01/' + ano + '- ' + fim]].forEach((p, i) => {
     ws.getCell(i + 1, 1).value = p[0]; ws.getCell(i + 1, 1).font = BOLD; ws.getCell(i + 1, 2).value = p[1]; ws.getCell(i + 1, 2).font = NORM;
   });
   ws.getCell(4, 1).value = 'COMPOSIÇÃO DE ' + ENTS; ws.getCell(4, 1).font = BOLD;
-  ws.getCell(1, 5).value = (forn ? 'Amarelo = saldo vindo da composição anterior.' : 'Amarelo = item já destacado na composição anterior.') + ' Laranja = ponto para apuração.';
+  ws.getCell(1, 5).value = 'Amarelo = item da composição anterior. Laranja = APURAR. Rosa = divergência crédito sem débito.';
   ws.getCell(1, 5).font = { name: F, italic: true, color: { argb: 'FF595959' } };
+  if (meta.modoB) { ws.getCell(2, 5).value = 'Modo B: sem composição anterior — parte do saldo anterior do razão.'; ws.getCell(2, 5).font = { name: F, italic: true, color: { argb: 'FF7D5A00' } }; }
+  if (meta.contaUnica) { ws.getCell(3, 5).value = 'Modelo conta única: cruzamento por nº de NF no histórico.'; ws.getCell(3, 5).font = { name: F, italic: true, color: { argb: 'FF1F5C8B' } }; }
   ['DIA', 'HISTÓRICO', 'SALDO PARCIAL', 'SALDO TOTAL', 'OBS'].forEach((h, i) => {
     const c = ws.getCell(5, i + 1); c.value = h; c.font = { name: F, bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = fill(BRAND); c.alignment = { horizontal: 'center' };
   });
   let row = 6;
   const saldoRows = [];
-  res.clientes.filter(c => c.itens.length).forEach(cl => {
-    ws.getCell(row, 1).value = ENT + ' :'; ws.getCell(row, 2).value = cl.cnpj + '- ' + cl.nome;
-    for (let c = 1; c <= 5; c++) { if (CLIFILL) ws.getCell(row, c).fill = fill(CLIFILL); ws.getCell(row, c).font = BOLD; }
-    const vinc = cl.obs.find(o => /cabeçalho/.test(o));
-    if (vinc) { const c = ws.getCell(row, 5); c.value = 'APURAR: ' + vinc; c.font = RED; c.fill = fill('FCE4D6'); c.alignment = { wrapText: true, vertical: 'top' }; }
-    row++; const first = row;
-    cl.itens.forEach(x => {
-      ws.getCell(row, 1).value = x.dia; ws.getCell(row, 1).alignment = { horizontal: 'right' }; ws.getCell(row, 1).font = NORM;
-      ws.getCell(row, 2).value = x.hist; ws.getCell(row, 2).font = NORM;
-      const v = ws.getCell(row, 3); v.value = Core.r2(x.aberto); v.numFmt = NUM; v.font = AZUL;
-      if (x.obs) { const o = ws.getCell(row, 5); o.value = x.obs; o.font = x.obs.startsWith('APURAR') ? RED : NORM; o.alignment = { wrapText: true, vertical: 'top' }; }
-      if (x.obs.startsWith('APURAR')) for (let c = 1; c <= 5; c++) ws.getCell(row, c).fill = fill('FCE4D6');
-      else if (x.amarelo) v.fill = fill('FFFF00');
-      else if (forn && x.orig === 'ant') v.fill = fill('FFF2CC');
-      row++;
+
+  if (res.modeloConta) {
+    // conta única: itens diretamente, sem agrupamento por cliente
+    const cl = res.clientes[0];
+    if (cl) {
+      cl.itens.forEach(x => {
+        ws.getCell(row, 1).value = x.dia; ws.getCell(row, 1).alignment = { horizontal: 'right' }; ws.getCell(row, 1).font = NORM;
+        ws.getCell(row, 2).value = x.hist || ('NF ' + x.nf); ws.getCell(row, 2).font = NORM;
+        const vc = ws.getCell(row, 3); vc.value = Core.r2(x.aberto); vc.numFmt = NUM;
+        if (x.divCred) {
+          vc.font = { name: F, bold: true, color: { argb: 'FFC2004D' } };
+          for (let c = 1; c <= 5; c++) ws.getCell(row, c).fill = fill(ROSA);
+        } else if (x.obs && x.obs.startsWith('APURAR')) {
+          vc.font = RED;
+          for (let c = 1; c <= 5; c++) ws.getCell(row, c).fill = fill(PESSEGO);
+        } else { vc.font = AZUL; }
+        if (x.obs) { const o = ws.getCell(row, 5); o.value = x.obs; o.font = x.divCred ? { name: F, bold: true, color: { argb: 'FFC2004D' } } : (x.obs.startsWith('APURAR') ? RED : NORM); o.alignment = { wrapText: true, vertical: 'top' }; }
+        row++;
+      });
+      ws.getCell(row, 1).value = fim; ws.getCell(row, 2).value = 'SALDO TOTAL';
+      ws.getCell(row, 2).font = BOLD; ws.getCell(row, 1).alignment = { horizontal: 'right' };
+      const t = ws.getCell(row, 4); t.value = { formula: `SUM(C6:C${row - 1})`, result: Core.r2(sum(cl.itens, x => x.aberto)) }; t.numFmt = NUM; t.font = BOLD; t.fill = fill(AMARELO);
+      saldoRows.push(row); row++;
+    }
+  } else {
+    res.clientes.filter(c => c.itens.length).forEach(cl => {
+      ws.getCell(row, 1).value = ENT + ' :'; ws.getCell(row, 2).value = cl.cnpj + '- ' + cl.nome;
+      for (let c = 1; c <= 5; c++) { if (CLIFILL) ws.getCell(row, c).fill = fill(CLIFILL); ws.getCell(row, c).font = BOLD; }
+      const vinc = cl.obs.find(o => /cabeçalho/.test(o));
+      if (vinc) { const c = ws.getCell(row, 5); c.value = 'APURAR: ' + vinc; c.font = RED; c.fill = fill(PESSEGO); c.alignment = { wrapText: true, vertical: 'top' }; }
+      row++; const first = row;
+      cl.itens.forEach(x => {
+        ws.getCell(row, 1).value = x.dia; ws.getCell(row, 1).alignment = { horizontal: 'right' }; ws.getCell(row, 1).font = NORM;
+        ws.getCell(row, 2).value = x.hist; ws.getCell(row, 2).font = NORM;
+        const v = ws.getCell(row, 3); v.value = Core.r2(x.aberto); v.numFmt = NUM; v.font = AZUL;
+        if (x.obs) { const o = ws.getCell(row, 5); o.value = x.obs; o.font = x.obs.startsWith('APURAR') ? RED : NORM; o.alignment = { wrapText: true, vertical: 'top' }; }
+        if (x.divCred) for (let c = 1; c <= 5; c++) ws.getCell(row, c).fill = fill(ROSA);
+        else if (x.obs && x.obs.startsWith('APURAR')) for (let c = 1; c <= 5; c++) ws.getCell(row, c).fill = fill(PESSEGO);
+        else if (x.amarelo) v.fill = fill(AMARELO);
+        else if (forn && x.orig === 'ant') v.fill = fill(LARANJA);
+        row++;
+      });
+      ws.getCell(row, 1).value = fim; ws.getCell(row, 1).alignment = { horizontal: 'right' }; ws.getCell(row, 1).font = NORM;
+      ws.getCell(row, 2).value = 'SALDO'; ws.getCell(row, 2).font = BOLD;
+      const t = ws.getCell(row, 4); t.value = { formula: `SUM(C${first}:C${row - 1})`, result: Core.r2(sum(cl.itens, x => x.aberto)) }; t.numFmt = NUM; t.font = BOLD;
+      saldoRows.push(row); row++;
     });
-    ws.getCell(row, 1).value = fim; ws.getCell(row, 1).alignment = { horizontal: 'right' }; ws.getCell(row, 1).font = NORM;
-    ws.getCell(row, 2).value = 'SALDO'; ws.getCell(row, 2).font = BOLD;
-    const t = ws.getCell(row, 4); t.value = { formula: `SUM(C${first}:C${row - 1})`, result: Core.r2(sum(cl.itens, x => x.aberto)) }; t.numFmt = NUM; t.font = BOLD;
-    saldoRows.push(row); row++;
-  });
+  }
   row++;
   const totalNotas = res.conf.somaNotas;
   ws.getCell(row, 1).value = 'TOTAL'; ws.getCell(row, 1).font = BOLD;
-  let c = ws.getCell(row, 4); c.value = { formula: `SUM(D6:D${row - 2})`, result: totalNotas }; c.numFmt = NUM; c.font = BOLD; c.fill = fill(PASTEL);
+  let c = ws.getCell(row, 4); c.value = { formula: `SUM(D6:D${row - 2})`, result: totalNotas }; c.numFmt = NUM; c.font = BOLD; c.fill = fill(AMARELO);
   const tRow = row; row++;
   ws.getCell(row, 2).value = 'Saldo atual da conta no Razão Auxiliar'; ws.getCell(row, 2).font = NORM;
   c = ws.getCell(row, 4); c.value = res.conf.contaAtual; c.numFmt = NUM; c.font = AZUL; row++;
   ws.getCell(row, 2).value = 'Diferença'; ws.getCell(row, 2).font = BOLD;
   c = ws.getCell(row, 4); c.value = { formula: `D${tRow}-D${row - 1}`, result: Core.r2(totalNotas - (res.conf.contaAtual || 0)) }; c.numFmt = NUM; c.font = BOLD; row += 2;
-  if (res.fora.length) {
+  if (res.fora && res.fora.length) {
     ws.getCell(row, 1).value = 'ITENS DA COMPOSIÇÃO ANTERIOR QUE NÃO ESTÃO NO SALDO DO RAZÃO (fora do total acima — apurar)'; ws.getCell(row, 1).font = RED; row++;
     res.fora.forEach(f => {
       ws.getCell(row, 1).value = ENT + ' :'; ws.getCell(row, 2).value = f.cnpj + '- ' + f.nome;
       ws.getCell(row, 5).value = f.razAnt === null ? 'Cliente não aparece no razão' : 'Razão abre com saldo anterior ' + Core.fmt(f.razAnt);
-      for (let k = 1; k <= 5; k++) { ws.getCell(row, k).fill = fill('FCE4D6'); ws.getCell(row, k).font = k === 5 ? RED : BOLD; }
+      for (let k = 1; k <= 5; k++) { ws.getCell(row, k).fill = fill(PESSEGO); ws.getCell(row, k).font = k === 5 ? RED : BOLD; }
       row++; const first = row;
       f.itens.forEach(x => {
         ws.getCell(row, 1).value = x.dia; ws.getCell(row, 1).alignment = { horizontal: 'right' };
         ws.getCell(row, 2).value = x.hist;
-        const v = ws.getCell(row, 3); v.value = x.valor; v.numFmt = NUM; v.font = AZUL; if (x.amarelo) v.fill = fill('FFFF00');
+        const v = ws.getCell(row, 3); v.value = x.valor; v.numFmt = NUM; v.font = AZUL; if (x.amarelo) v.fill = fill(AMARELO);
         row++;
       });
       ws.getCell(row, 2).value = 'SALDO NA COMPOSIÇÃO ANTERIOR'; ws.getCell(row, 2).font = BOLD;
@@ -605,23 +949,24 @@ async function montarExcel(ExcelJS, res, meta) {
     });
   }
 
-  /* ---- aba 2: resumo e conferência ---- */
+  /* ---- aba 2: resumo ---- */
   const rs = wb.addWorksheet('Resumo e conferência', { views: [{ state: 'frozen', ySplit: 5 }], pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
   rs.columns = [21, 46, 18, 18, 17, 17, 18, 16, 70].map(w => ({ width: w }));
   rs.getCell('A1').value = (meta.empresa || '') + (meta.cnpj ? ' — CNPJ ' + meta.cnpj : ''); rs.getCell('A1').font = { name: F, bold: true, size: 13 };
-  rs.getCell('A2').value = 'Conta ' + ENTS + ' | Composição atualizada — período 01/01/' + ano + ' a ' + fim; rs.getCell('A2').font = NORM;
-  rs.getCell('A3').value = 'Gerado em ' + new Date().toLocaleDateString('pt-BR') + ' | Fontes: composição anterior (' + meta.arqComp + ') e razão auxiliar (' + meta.arqRaz + ')';
+  rs.getCell('A2').value = 'Conta ' + ENTS + ' | Período 01/01/' + ano + ' a ' + fim + (meta.modoB ? ' | Modo B (sem composição anterior)' : '') + (meta.contaUnica ? ' | Conta única' : '');
+  rs.getCell('A2').font = NORM;
+  rs.getCell('A3').value = 'Gerado em ' + new Date().toLocaleDateString('pt-BR') + ' | Fontes: ' + (meta.modoB ? 'sem composição anterior' : 'composição anterior (' + meta.arqComp + ')') + ' e razão auxiliar (' + meta.arqRaz + ')';
   rs.getCell('A3').font = { name: F, italic: true, color: { argb: 'FF595959' } };
-  rs.getCell('A4').value = forn ? 'Saldo credor (C) = valor a pagar, positivo. Saldo Final = Saldo Anterior + Créditos (notas) − Débitos (pagamentos).' : 'Saldo credor (C) aparece negativo. Saldo Final = Saldo Anterior (razão) + Débitos − Créditos.'; rs.getCell('A4').font = { name: F, italic: true, color: { argb: 'FF595959' } };
-  const cols = ['CNPJ/CPF', forn ? 'Fornecedor' : 'Cliente', 'Saldo Composição anterior', 'Saldo Anterior (Razão)', LBL_EMI, LBL_BX, 'Saldo Final', 'Dif. Composição × Razão', 'Obs'];
-  const secoes = ['PENDENTES', 'SEM MOVIMENTO', 'QUITADOS', 'NOVOS', 'AUSENTES DO RAZÃO'];
+  rs.getCell('A4').value = forn ? 'Saldo credor = valor a pagar. Saldo Final = Anterior + Créditos − Débitos.' : 'Saldo devedor = cliente deve. Saldo Final = Anterior + Débitos − Créditos.'; rs.getCell('A4').font = { name: F, italic: true, color: { argb: 'FF595959' } };
+  const cols = ['CNPJ/CPF', forn ? 'Fornecedor' : 'Cliente', 'Saldo Comp. ant.', 'Saldo Ant. (Razão)', LBL_EMI, LBL_BX, 'Saldo Final', 'Dif. Comp. × Razão', 'Obs'];
+  const secoes = res.modeloConta ? ['PENDENTES'] : ['PENDENTES', 'SEM MOVIMENTO', 'QUITADOS', 'NOVOS', 'AUSENTES DO RAZÃO'];
   const L = 'CDEFGH'.split('');
   row = 6; const subRows = {};
   const hdr = r => cols.forEach((h, i) => { const x = rs.getCell(r, i + 1); x.value = h; x.font = { name: F, bold: true, color: { argb: 'FFFFFFFF' } }; x.fill = fill(BRAND); x.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; });
   secoes.forEach(sec => {
     const items = res.clientes.filter(x => x.status === sec);
     rs.getCell(row, 1).value = `${sec} (${items.length})`; rs.getCell(row, 1).font = { name: F, bold: true, size: 12 };
-    for (let k = 1; k <= 9; k++) rs.getCell(row, k).fill = fill(PASTEL);
+    for (let k = 1; k <= 9; k++) rs.getCell(row, k).fill = fill(AZULCINZA);
     row++; hdr(row); rs.getRow(row).height = 30; row++; const first = row;
     items.forEach(x => {
       rs.getCell(row, 1).value = x.cnpj; rs.getCell(row, 2).value = x.nome;
@@ -634,7 +979,9 @@ async function montarExcel(ExcelJS, res, meta) {
       const o = x.obs.join(' ');
       rs.getCell(row, 9).value = o; rs.getCell(row, 9).alignment = { wrapText: true, vertical: 'top' };
       rs.getCell(row, 9).font = /APURAR|confirmar/.test(o) ? RED : NORM;
-      for (let k = 1; k <= 9; k++) { rs.getCell(row, k).border = box; if (/APURAR|confirmar/.test(o)) rs.getCell(row, k).fill = fill('FFF2CC'); }
+      // divergência crédito-sem-débito: rosa
+      const temDivCred = x.itens && x.itens.some(it => it.divCred);
+      for (let k = 1; k <= 9; k++) { rs.getCell(row, k).border = box; if (temDivCred) rs.getCell(row, k).fill = fill(ROSA); else if (/APURAR|confirmar/.test(o)) rs.getCell(row, k).fill = fill(LARANJA); }
       for (let k = 3; k <= 8; k++) rs.getCell(row, k).numFmt = NUM;
       row++;
     });
@@ -647,11 +994,11 @@ async function montarExcel(ExcelJS, res, meta) {
       const x = rs.getCell(row, i + 3); x.value = items.length ? { formula: `SUM(${l}${first}:${l}${last})`, result: res_ } : 0; x.font = BOLD; x.numFmt = NUM;
       sv[i] = items.length ? res_ : 0;
     });
-    for (let k = 1; k <= 9; k++) { rs.getCell(row, k).fill = fill(PASTEL); rs.getCell(row, k).border = box; }
+    for (let k = 1; k <= 9; k++) { rs.getCell(row, k).fill = fill(VERDE); rs.getCell(row, k).border = box; }
     subRows[sec] = { row, vals: sv }; row += 2;
   });
   rs.getCell(row, 1).value = 'TOTAIS'; rs.getCell(row, 1).font = { name: F, bold: true, size: 12 };
-  for (let k = 1; k <= 9; k++) rs.getCell(row, k).fill = fill(PASTEL);
+  for (let k = 1; k <= 9; k++) rs.getCell(row, k).fill = fill(HDR);
   row++;
   ['', 'Seção', ...cols.slice(2, 8)].forEach((h, i) => { const x = rs.getCell(row, i + 1); x.value = h; x.font = { name: F, bold: true, color: { argb: 'FFFFFFFF' } }; x.fill = fill(BRAND); x.alignment = { horizontal: 'center', wrapText: true }; });
   row++; const t0 = row; const tot = [0, 0, 0, 0, 0, 0];
@@ -661,10 +1008,10 @@ async function montarExcel(ExcelJS, res, meta) {
     row++;
   });
   rs.getCell(row, 2).value = 'TOTAL GERAL'; rs.getCell(row, 2).font = BOLD;
-  L.forEach((l, i) => { const x = rs.getCell(row, i + 3); x.value = { formula: `SUM(${l}${t0}:${l}${row - 1})`, result: Core.r2(tot[i]) }; x.numFmt = NUM; x.font = BOLD; x.fill = fill(PASTEL); });
+  L.forEach((l, i) => { const x = rs.getCell(row, i + 3); x.value = { formula: `SUM(${l}${t0}:${l}${row - 1})`, result: Core.r2(tot[i]) }; x.numFmt = NUM; x.font = BOLD; x.fill = fill(AMARELO); });
   const tg = row; row += 2;
   rs.getCell(row, 1).value = 'CONFERÊNCIA COM OS ARQUIVOS'; rs.getCell(row, 1).font = { name: F, bold: true, size: 12 };
-  for (let k = 1; k <= 9; k++) rs.getCell(row, k).fill = fill(PASTEL);
+  for (let k = 1; k <= 9; k++) rs.getCell(row, k).fill = fill(HDR);
   row++;
   const cf = res.conf;
   [['Total da composição anterior (linha TOTAL do arquivo)', cf.compTotalArq, 'C', Core.r2(tot[0])],
@@ -694,7 +1041,7 @@ async function montarExcel(ExcelJS, res, meta) {
   });
   if (res.aceites && res.aceites.length) {
     row++;
-    rs.getCell(row, 1).value = 'BAIXAS ACEITAS NA FERRAMENTA (sem nº de NF no histórico — aceitas pelo usuário por valor idêntico)';
+    rs.getCell(row, 1).value = 'BAIXAS ACEITAS NA FERRAMENTA';
     rs.getCell(row, 1).font = { name: F, bold: true, size: 12, color: { argb: 'FF' + BRAND } }; row++;
     [forn ? 'Fornecedor' : 'Cliente', 'CNPJ/CPF', 'Data da baixa', 'Histórico da baixa', 'Valor', 'Nota baixada', 'Data da nota', 'Aceito em'].forEach((h, i) => {
       const x = rs.getCell(row, i + 1); x.value = h; x.font = { name: F, bold: true, color: { argb: 'FFFFFFFF' } }; x.fill = fill(BRAND); x.alignment = { horizontal: 'center', wrapText: true };
@@ -708,7 +1055,7 @@ async function montarExcel(ExcelJS, res, meta) {
       row++;
     });
     rs.getCell(row, 4).value = 'Total aceito'; rs.getCell(row, 4).font = BOLD;
-    const x = rs.getCell(row, 5); x.value = { formula: `SUM(E${a0}:E${row - 1})`, result: Core.r2(res.aceites.reduce((t, a) => t + a.valor, 0)) }; x.numFmt = NUM; x.font = BOLD; x.fill = fill(PASTEL);
+    const x = rs.getCell(row, 5); x.value = { formula: `SUM(E${a0}:E${row - 1})`, result: Core.r2(res.aceites.reduce((t, a) => t + a.valor, 0)) }; x.numFmt = NUM; x.font = BOLD; x.fill = fill(AMARELO);
     row++;
   }
   [ws, rs].forEach(w => w.eachRow(r => r.eachCell(c => { if (!c.font || !c.font.name) c.font = { ...(c.font || {}), name: F }; })));
@@ -719,20 +1066,19 @@ async function montarExcel(ExcelJS, res, meta) {
 (() => {
   const $ = id => document.getElementById(id);
   const fmt = Core.fmt;
-  const state = { modo: 'cliente', comp: null, razRows: null, razArq: '', base: null, aceites: {}, res: null, meta: null, demo: true, filtro: 'TODOS', busca: '', abertos: new Set() };
+  const state = { modo: 'cliente', comp: null, razRows: null, razArq: '', base: null, aceites: {}, res: null, meta: null, demo: true, filtro: 'TODOS', busca: '', abertos: new Set(), modoB: false, contaUnica: false };
   const SECOES = ['PENDENTES', 'SEM MOVIMENTO', 'QUITADOS', 'NOVOS', 'AUSENTES DO RAZÃO'];
   const ABR = { 'PENDENTES': 'PEN', 'SEM MOVIMENTO': 'SEM', 'QUITADOS': 'QUI', 'NOVOS': 'NOV', 'AUSENTES DO RAZÃO': 'AUS' };
   const TXT = {
     cliente: { titulo: 'Clientes', nome: 'Cliente', emi: 'Débitos (notas)', bx: 'Créditos (receb.)', comp: 'Planilha com a aba CLIENTES-AAAA (linhas "CLIENTE :", notas e SALDO).',
-      regra: '<b>Conta de clientes (ativo).</b> Débito = nota emitida. Crédito = recebimento ou retenção, ligado à nota pelo número no histórico ("A NF-3214", "RETENÇÃO REFERENTE 3106"). Saldo devedor é o normal.',
+      regra: '<b>Conta de clientes (ativo).</b> Débito = nota emitida. Crédito = recebimento ou retenção, ligado à nota pelo número no histórico. Saldo devedor é o normal.',
       fim: 'Clientes: débito = nota emitida; crédito = recebimento ou retenção. Recebimento sem número de nota não é baixado e fica separado para apuração.' },
     fornecedor: { titulo: 'Fornecedores', nome: 'Fornecedor', emi: 'Créditos (notas)', bx: 'Débitos (pagtos.)', comp: 'Planilha com a aba FORNECEDORES-AAAA (linhas "FORNECEDOR :", notas e SALDO).',
-      regra: '<b>Conta de fornecedores (passivo).</b> Crédito = nota recebida do fornecedor. Débito = pagamento, ligado à nota pelo número no histórico. Saldo credor é o normal e aparece positivo.',
+      regra: '<b>Conta de fornecedores (passivo).</b> Crédito = nota recebida do fornecedor. Débito = pagamento, ligado à nota pelo número no histórico. Saldo credor é o normal.',
       fim: 'Fornecedores: crédito = nota recebida; débito = pagamento. Pagamento sem número de nota não é baixado e fica separado para apuração.' } };
   const esc = t => String(t ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const money = x => x === null || x === undefined ? '' : fmt(x).replace('R$ ', '');
 
-  /* ---------- exemplo fictício ---------- */
   function exemplo(modo) {
     const f = modo === 'fornecedor';
     const it = (dia, hist, valor) => ({ dia, hist, valor, key: parseInt((hist.match(/(\d{3,})/) || [])[1], 10) || null, orig: 'ant', amarelo: false, baixas: 0, obs: '' });
@@ -753,43 +1099,141 @@ async function montarExcel(ExcelJS, res, meta) {
     return { comp, raz };
   }
 
-  /* ---------- leitura ---------- */
   const toRows = ws => XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '', blankrows: true });
   const ehCab = r => { const c0 = String(r[0]).trim(); return /^(CLIENTE|FORNECEDOR)\s*:$/.test(c0) || (c0 === 'CLIENTE/FORNECEDOR :' && !String(r[4]).trim() && /\d/.test(String(r[1]))); };
   const lerArquivo = async file => XLSX.read(await file.arrayBuffer(), { type: 'array', cellStyles: true });
+
+  // Detecta se aba tem modelo lista única: cabeçalho DATA|HISTÓRICO|VALOR na linha 0 e col B com números de NF
+  function ehListaUnica(rows) {
+    if (!rows || !rows[0]) return false;
+    const acc = /[\u0300-\u036f]/g;
+    const r0 = rows[0].map(v => String(v).toUpperCase().normalize('NFD').replace(acc, '').trim());
+    const temHist = r0.some(v => /^HIST/.test(v));   // aceita HISTORICO, HISTÓRICO, HIST
+    const temVal  = r0.some(v => /^VALOR$/.test(v));
+    const temData = r0.some(v => /^DATA$/.test(v));
+    if (!temHist || !temVal || !temData) return false;
+    // Não deve ter blocos CLIENTE:/FORNECEDOR:
+    const nrm = v => String(v).toUpperCase().normalize('NFD').replace(acc, '').trim();
+    return !rows.some(r => /^(CLIENTE|FORNECEDOR)\s*:?$/.test(nrm(r[0])));
+  }
+
   async function carregarComp(file) {
     const wb = await lerArquivo(file);
     const pref = state.modo === 'fornecedor' ? /FORNEC/i : /CLIENT/i;
     const ano = n => { const m = n.match(/(19|20)\d\d/); return m ? parseInt(m[0], 10) : 0; };
+    // 1. Tenta modelo padrão com blocos CLIENTE:/FORNECEDOR:
     const cands = [];
     wb.SheetNames.forEach((n, i) => { const rows = toRows(wb.Sheets[n]); if (rows.some(ehCab)) cands.push({ nome: n, rows, ws: wb.Sheets[n], p: pref.test(n) ? 1 : 0, a: ano(n), i }); });
-    cands.sort((x, y) => y.p - x.p || y.a - x.a || x.i - y.i);
-    const aba = cands[0] || null;
-    if (!aba) throw new Error('Não encontrei uma aba de composição (linhas "CLIENTE :" ou "FORNECEDOR :"). Confira o arquivo.');
-    const yellow = (i, c) => { const cell = aba.ws[XLSX.utils.encode_cell({ r: i, c })]; const rgb = cell && cell.s && cell.s.fgColor && cell.s.fgColor.rgb; return rgb === 'FFFF00' || rgb === 'FFCC00'; };
-    const comp = Core.parseComp(aba.rows, yellow); comp.aba = aba.nome; comp.arquivo = file.name;
-    if (!comp.blocos.length) throw new Error('A aba ' + aba.nome + ' não tem linhas reconhecíveis.');
-    return comp;
+    if (cands.length) {
+      cands.sort((x, y) => y.p - x.p || y.a - x.a || x.i - y.i);
+      const aba = cands[0];
+      const yellow = (i, c) => { const cell = aba.ws[XLSX.utils.encode_cell({ r: i, c })]; const rgb = cell && cell.s && cell.s.fgColor && cell.s.fgColor.rgb; return rgb === 'FFFF00' || rgb === 'FFCC00'; };
+      const comp = Core.parseComp(aba.rows, yellow); comp.aba = aba.nome; comp.arquivo = file.name;
+      if (comp.blocos.length) return comp;
+    }
+    // 2. Tenta modelo lista única (DATA | HISTÓRICO=NF | VALOR)
+    for (const n of wb.SheetNames) {
+      const rows = toRows(wb.Sheets[n]);
+      if (ehListaUnica(rows)) {
+        const comp = Core.parseCompListaUnica(rows);
+        comp.aba = n; comp.arquivo = file.name;
+        if (comp.blocos[0] && comp.blocos[0].itens.length) return comp;
+      }
+    }
+    throw new Error('Não encontrei uma aba de composição reconhecível. Confira se o arquivo tem linhas "CLIENTE :" / "FORNECEDOR :", ou o cabeçalho DATA | HISTÓRICO | VALOR.');
   }
+
   async function carregarRaz(file) {
     const wb = await lerArquivo(file);
     const nrm = v => String(v).toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-    for (const n of wb.SheetNames) { const rows = toRows(wb.Sheets[n]); if (rows.some(r => /^CLIENTE\/FORNECEDOR\s*:$/.test(nrm(r[0]))) && rows.some(r => r.some(v => nrm(v) === 'DEBITO') && r.some(v => nrm(v) === 'CREDITO'))) return { rows, aba: n, arquivo: file.name }; }
-    throw new Error('Não encontrei blocos "CLIENTE/FORNECEDOR :". Confira se é o razão auxiliar.');
+    // Helper: detecta coluna DÉBITO ou CRÉDITO (aceita "DÉBITO MÊS", "DÉBITO PERÍODO" etc.)
+    const temDeb  = r => r.some(v => /^DEBITO/.test(nrm(v)));
+    const temCred = r => r.some(v => /^CREDITO/.test(nrm(v)));
+    // Tenta modelo padrão com blocos CLIENTE/FORNECEDOR
+    for (const n of wb.SheetNames) {
+      const rows = toRows(wb.Sheets[n]);
+      const temBlocos = rows.some(r => /^CLIENTE\/FORNECEDOR\s*:$/.test(nrm(r[0])));
+      const temCols   = rows.some(r => temDeb(r) && temCred(r));
+      if (temBlocos && temCols) return { rows, aba: n, arquivo: file.name, modeloConta: false };
+    }
+    // Tenta modelo conta única (sem blocos, mas com DEBITO/CREDITO em alguma linha de cabeçalho)
+    for (const n of wb.SheetNames) {
+      const rows = toRows(wb.Sheets[n]);
+      const temCols = rows.some(r => temDeb(r) && temCred(r));
+      if (temCols) return { rows, aba: n, arquivo: file.name, modeloConta: true };
+    }
+    throw new Error('Não encontrei razão auxiliar válido. Confira se o arquivo tem colunas DÉBITO e CRÉDITO.');
   }
-  const razParsed = () => { const r = Core.parseRazao(state.razRows.rows, state.modo); r.arquivo = state.razRows.arquivo; return r; };
-  function infoRaz() { const r = razParsed(); return `${state.razRows.arquivo} · ${r.blocos.length} blocos · saldo atual ${r.contaAtual !== null ? fmt(r.contaAtual) : 'não informado'}`; }
+
+  const razParsed = () => {
+    if (state.razRows.modeloConta) {
+      const r = Core.parseRazaoContaUnica(state.razRows.rows, state.modo);
+      r.arquivo = state.razRows.arquivo; return r;
+    }
+    const r = Core.parseRazao(state.razRows.rows, state.modo); r.arquivo = state.razRows.arquivo; return r;
+  };
+  function infoRaz() {
+    if (state.razRows.modeloConta) return `${state.razRows.arquivo} · Conta única detectada · modelo por NF`;
+    const r = Core.parseRazao(state.razRows.rows, state.modo);
+    return `${state.razRows.arquivo} · ${r.blocos.length} blocos · saldo atual ${r.contaAtual !== null ? fmt(r.contaAtual) : 'não informado'}`;
+  }
+
+  function atualizarBannersModelo() {
+    const listaUnica = !!(state.comp && state.comp.modeloCompLista && state.razRows && state.razRows.modeloConta);
+    $('bannerListaUnica').hidden = !listaUnica;
+    // bannerContaUnica só aparece quando conta única está ativa mas SEM lista única (para não duplicar)
+    $('bannerContaUnica').hidden = !(state.contaUnica && !listaUnica);
+  }
+
+  function atualizarModoB() {
+    const mb = state.modoB;
+    const dropComp = $('dropComp');
+    const fileComp = $('fileComp');
+    dropComp.classList.toggle('disabled-drop', mb);
+    fileComp.disabled = mb;
+    if (mb) {
+      state.comp = null;
+      $('infoComp').textContent = 'Desabilitado — Modo B ativo';
+      dropComp.classList.remove('loaded', 'err');
+    }
+    $('bannerModoB').hidden = !mb;
+    atualizarBannersModelo();
+    $('btnRun').disabled = !(state.razRows && (state.comp || state.modoB));
+  }
+
+  $('chkModoB').addEventListener('change', function() {
+    state.modoB = this.checked;
+    atualizarModoB();
+  });
+
   function ligarDrop(dropId, inputId, infoId, alvo) {
     const drop = $(dropId), input = $(inputId), info = $(infoId);
     const tratar = async file => {
       if (!file) return;
       drop.classList.remove('err', 'loaded'); info.textContent = 'Lendo ' + file.name + '…';
       try {
-        if (alvo === 'comp') { state.comp = await carregarComp(file); const x = state.comp; info.textContent = `${file.name} · aba ${x.aba} · ${x.blocos.length} cadastros · total ${x.total !== null ? fmt(x.total) : 'sem linha TOTAL'}`; }
-        else { state.razRows = await carregarRaz(file); info.textContent = infoRaz(); }
+        if (alvo === 'comp') {
+          state.comp = await carregarComp(file);
+          const x = state.comp;
+          if (x.modeloCompLista) {
+            const itens = x.blocos[0] ? x.blocos[0].itens.length : 0;
+            info.textContent = `${file.name} · aba ${x.aba} · ${itens} itens · total ${x.total !== null ? fmt(x.total) : 'sem linha TOTAL'} · modelo lista única`;
+          } else {
+            info.textContent = `${file.name} · aba ${x.aba} · ${x.blocos.length} cadastros · total ${x.total !== null ? fmt(x.total) : 'sem linha TOTAL'}`;
+          }
+          atualizarBannersModelo();
+        } else {
+          state.razRows = await carregarRaz(file);
+          state.contaUnica = !!state.razRows.modeloConta;
+          atualizarBannersModelo();
+          info.textContent = infoRaz();
+        }
         drop.classList.add('loaded');
-      } catch (e) { if (alvo === 'comp') state.comp = null; else state.razRows = null; drop.classList.add('err'); info.textContent = e.message || 'Não consegui ler este arquivo.'; }
-      $('btnRun').disabled = !(state.comp && state.razRows);
+      } catch (e) {
+        if (alvo === 'comp') state.comp = null; else { state.razRows = null; state.contaUnica = false; }
+        drop.classList.add('err'); info.textContent = e.message || 'Não consegui ler este arquivo.';
+      }
+      $('btnRun').disabled = !(state.razRows && (state.comp || state.modoB));
       input.value = '';
     };
     input.addEventListener('change', () => tratar(input.files[0]));
@@ -801,17 +1245,42 @@ async function montarExcel(ExcelJS, res, meta) {
   ligarDrop('dropRaz', 'fileRaz', 'infoRaz', 'raz');
 
   function anoDe(raz, comp) {
-    const m = (raz.info.periodo || '').match(/(20\d\d)/); if (m) return m[1];
+    const m = (raz.info && raz.info.periodo || '').match(/(20\d\d)/); if (m) return m[1];
+    if (!comp) return '';
     const p = (comp.info.periodo || '').match(/(20\d\d)/g); return p ? String(parseInt(p[p.length - 1], 10) + 1) : '';
   }
+
   function rodar(comp, raz, demo) {
-    const compCopia = JSON.parse(JSON.stringify(comp));
-    state.base = Core.conciliar(compCopia, raz, state.modo); state.demo = demo;
-    state.meta = { modo: state.modo, empresa: comp.info.empresa || raz.info.empresa, cnpj: comp.info.cnpj, anoAtual: anoDe(raz, comp), arqComp: comp.arquivo || 'exemplo', arqRaz: raz.arquivo || 'exemplo' };
-    state.aceites = lerAceites(); state.retomados = Object.keys(state.aceites).length;
-    state.res = Core.aplicarAceites(state.base, state.aceites, state.modo); state.abertos.clear(); state.filtro = 'TODOS';
+    let resultado;
+    if (comp && comp.modeloCompLista && raz.modeloConta) {
+      // Lista única + conta única: cruzamento por NF no histórico
+      resultado = Core.conciliarComListaUnica(comp, raz, state.modo);
+    } else if (raz.modeloConta) {
+      // Conta única sem composição lista única
+      resultado = Core.conciliarContaUnica(raz, state.modo);
+    } else {
+      const compCopia = comp ? JSON.parse(JSON.stringify(comp)) : null;
+      resultado = Core.conciliar(compCopia, raz, state.modo);
+    }
+    state.base = resultado; state.demo = demo;
+    const empresa = (comp && comp.info && comp.info.empresa) || (raz.info && raz.info.empresa) || '';
+    const cnpj = (comp && comp.info && comp.info.cnpj) || '';
+    state.meta = {
+      modo: state.modo,
+      empresa, cnpj,
+      anoAtual: anoDe(raz, comp),
+      arqComp: (comp && comp.arquivo) || 'sem composição anterior',
+      arqRaz: raz.arquivo || 'exemplo',
+      modoB: !comp && !raz.modeloConta,
+      contaUnica: !!raz.modeloConta
+    };
+    state.aceites = raz.modeloConta ? {} : lerAceites();
+    state.retomados = Object.keys(state.aceites).length;
+    state.res = Core.aplicarAceites(state.base, state.aceites, state.modo);
+    state.abertos.clear(); state.filtro = 'TODOS';
     render();
   }
+
   function aplicarModo() {
     const T = TXT[state.modo];
     $('mCli').setAttribute('aria-pressed', state.modo === 'cliente'); $('mFor').setAttribute('aria-pressed', state.modo === 'fornecedor');
@@ -819,17 +1288,19 @@ async function montarExcel(ExcelJS, res, meta) {
     $('h-cli').textContent = T.titulo; $('thNome').textContent = T.nome; $('thEmi').textContent = T.emi; $('thBx').textContent = T.bx;
     if (state.razRows) $('infoRaz').textContent = infoRaz();
     $('msg').textContent = '';
-    if (state.comp && state.razRows && !state.demo) rodar(state.comp, razParsed(), false);
-    else { const ex = exemplo(state.modo); rodar(ex.comp, ex.raz, true); }
+    if (state.razRows && (state.comp || state.modoB) && !state.demo) {
+      rodar(state.comp, razParsed(), false);
+    } else { const ex = exemplo(state.modo); rodar(ex.comp, ex.raz, true); }
   }
   $('mCli').addEventListener('click', () => { if (state.modo !== 'cliente') { state.modo = 'cliente'; aplicarModo(); } });
   $('mFor').addEventListener('click', () => { if (state.modo !== 'fornecedor') { state.modo = 'fornecedor'; aplicarModo(); } });
   $('btnRun').addEventListener('click', () => {
-    try { rodar(state.comp, razParsed(), false); $('msg').className = 'msg ok'; $('msg').textContent = 'Conciliação feita. Confira os pontos para apuração antes de baixar o Excel.'; }
-    catch (e) { $('msg').className = 'msg bad'; $('msg').textContent = 'Não consegui conciliar: ' + (e.message || e); }
+    try {
+      rodar(state.comp, razParsed(), false);
+      $('msg').className = 'msg ok'; $('msg').textContent = 'Conciliação feita. Confira os pontos para apuração antes de baixar o Excel.';
+    } catch (e) { $('msg').className = 'msg bad'; $('msg').textContent = 'Não consegui conciliar: ' + (e.message || e); }
   });
 
-  /* ---------- render ---------- */
   const check = (lbl, linhas, ok) => `<div class="check"><span class="pill ${ok ? 'ok' : 'bad'}">${ok ? 'Confere' : 'Diverge'}</span><span class="lbl">${lbl}</span><div class="vals">${linhas.map(([a, b]) => `<span>${a}</span><span class="num">${b}</span>`).join('')}</div></div>`;
   const chaveAceites = () => state.demo ? null : ['conciliador-aceites', state.modo, state.meta && state.meta.arqComp, state.meta && state.meta.arqRaz].join('|');
   function salvarAceites() { const k = chaveAceites(); if (!k) return; try { if (Object.keys(state.aceites).length) localStorage.setItem(k, JSON.stringify(state.aceites)); else localStorage.removeItem(k); } catch (e) {} }
@@ -856,13 +1327,13 @@ async function montarExcel(ExcelJS, res, meta) {
     const n = Object.keys(state.aceites).length;
     $('sugResumo').textContent = `${lst.length} sugest${lst.length > 1 ? 'ões' : 'ão'} · ${n} aceit${n === 1 ? 'a' : 'as'}`;
     if (state.retomados) $('sugResumo').textContent += ` · ${state.retomados} retomad${state.retomados === 1 ? 'o' : 'os'} do último acesso`;
-    $('sugRegra').innerHTML = `<b>${f ? 'Pagamentos' : 'Recebimentos'} sem número de nota no histórico</b> cujo valor é igual ao de uma nota em aberto do mesmo ${f ? 'fornecedor' : 'cliente'}. A baixa só acontece se você aceitar, e cada aceite sai listado no Excel, com data e hora.`;
+    $('sugRegra').innerHTML = `<b>${f ? 'Pagamentos' : 'Recebimentos'} sem número de nota no histórico</b> cujo valor é igual ao de uma nota em aberto. A baixa só acontece se você aceitar.`;
     $('sugs').innerHTML = lst.map(({ cl, x, cands }) => {
       const ac = state.aceites[x.id];
       const opts = cands.map((c, i) => {
         const dono = usados.get(c.id), off = dono && dono !== x.id;
         const chk = ac ? ac === c.id : (cands.length === 1 && !off);
-        return `<label class="${off ? 'off' : ''}"><input type="radio" name="s_${esc(x.id)}" value="${esc(c.id)}" ${chk ? 'checked' : ''} ${off || ac ? 'disabled' : ''}><span><span class="num">${esc(c.dia)}</span> ${esc(c.hist)} · <span class="num">${money(c.aberto)}</span>${off ? ' (já usada em outro aceite)' : ''}</span></label>`;
+        return `<label class="${off ? 'off' : ''}"><input type="radio" name="s_${esc(x.id)}" value="${esc(c.id)}" ${chk ? 'checked' : ''} ${off || ac ? 'disabled' : ''}><span><span class="num">${esc(c.dia)}</span> ${esc(c.hist)} · <span class="num">${money(c.aberto)}</span>${off ? ' (já usada)' : ''}</span></label>`;
       }).join('');
       return `<div class="sug ${ac ? 'ok' : ''}" data-id="${esc(x.id)}">
         <div class="top"><span class="cli">${esc(cl.nome)}</span>${ac ? '<span class="tagok">Aceita</span>' : ''}</div>
@@ -887,51 +1358,57 @@ async function montarExcel(ExcelJS, res, meta) {
     recalc();
   });
   $('btnLimpar').addEventListener('click', () => { state.aceites = {}; recalc(); });
+
   function render() {
     renderSug();
     const { res, meta } = state, cf = res.conf, eq = Core.eq;
     $('demo').hidden = !state.demo;
-    $('empresa').textContent = [meta.empresa, meta.anoAtual && ('ano ' + meta.anoAtual)].filter(Boolean).join(' · ');
+    $('empresa').textContent = [meta.empresa, meta.anoAtual && ('ano ' + meta.anoAtual), state.contaUnica ? '· Conta única' : '', state.modoB ? '· Sem composição anterior' : ''].filter(Boolean).join(' ');
     const ch = [];
     if (cf.compTotalArq !== null) ch.push(check('Composição anterior × linha TOTAL', [['Soma da composição', fmt(cf.somaComp)], ['TOTAL do arquivo', fmt(cf.compTotalArq)]], eq(cf.somaComp, cf.compTotalArq)));
     if (cf.contaAtual !== null) ch.push(check('Notas em aberto × saldo atual do razão', [['Soma das notas', fmt(cf.somaNotas)], ['Saldo atual da conta', fmt(cf.contaAtual)]], eq(cf.somaNotas, cf.contaAtual)));
     if (cf.calcConta !== null && cf.contaAtual !== null) ch.push(check('Integridade do razão', [['Anterior + notas − baixas', fmt(cf.calcConta)], ['Saldo atual informado', fmt(cf.contaAtual)]], eq(cf.calcConta, cf.contaAtual)));
     $('checks').innerHTML = ch.join('') || '<p class="empty">O razão não informa os saldos da conta para conferir.</p>';
     const TAG = { razao: 'Razão', comp: 'Composição anterior', nota: state.modo === 'fornecedor' ? 'Pagamento' : 'Recebimento', erro: 'Cálculo' };
-    $('alerts').innerHTML = res.alertas.length ? res.alertas.map(a => `<li class="${a.tipo}"><span class="tag">${TAG[a.tipo] || ''}</span>${esc(a.texto)}</li>`).join('') : '<li>Nenhum ponto identificado.</li>';
+    $('alerts').innerHTML = res.alertas.length ? res.alertas.map(a => `<li class="${a.tipo}${a.tipo === 'nota' && state.base.clientes.some(cl => cl.itens.some(x => x.id === a.id && x.divCred)) ? ' div-cred' : ''}"><span class="tag">${TAG[a.tipo] || ''}</span>${esc(a.texto)}</li>`).join('') : '<li>Nenhum ponto identificado.</li>';
     const cont = { TODOS: res.clientes.length }; SECOES.forEach(s => cont[s] = res.clientes.filter(c => c.status === s).length);
     const rot = s => s === 'TODOS' ? 'Todos' : s === 'QUITADOS' && state.modo === 'fornecedor' ? 'Pagos' : s.charAt(0) + s.slice(1).toLowerCase();
     $('chips').innerHTML = ['TODOS', ...SECOES].map(s => `<button class="chip" type="button" data-s="${s}" aria-pressed="${state.filtro === s}">${rot(s)}<b>${cont[s]}</b></button>`).join('');
     renderTabela();
   }
+
   function renderTabela() {
     const q = state.busca.trim().toUpperCase();
-    const lista = state.res.clientes.filter(c => (state.filtro === 'TODOS' || c.status === state.filtro) && (!q || c.nome.toUpperCase().includes(q) || c.cnpj.includes(q)));
+    const lista = state.res.clientes.filter(c => (state.filtro === 'TODOS' || c.status === state.filtro) &&
+      (!q || c.nome.toUpperCase().includes(q) || c.cnpj.includes(q) || c.itens.some(x => x.nf && String(x.nf).includes(q))));
     $('tbody').innerHTML = lista.map(c => {
       const open = state.abertos.has(c.cnpj), flag = c.obs.some(o => /APURAR|confirmar/.test(o));
       const stTxt = c.status === 'QUITADOS' && state.modo === 'fornecedor' ? 'PAGOS' : c.status;
       let h = `<tr class="cli${open ? ' open' : ''}" data-k="${esc(c.cnpj)}" tabindex="0" aria-expanded="${open}">
-        <td><span class="caret">›</span><span class="st ${ABR[c.status]}">${stTxt}</span></td>
+        <td><span class="caret">›</span><span class="st ${ABR[c.status] || 'PEN'}">${stTxt}</span></td>
         <td class="num">${esc(c.cnpj)}</td><td>${esc(c.nome)}${flag ? ' <span class="flag" title="Ponto para apuração">●</span>' : ''}</td>
         <td class="n">${money(c.compSaldo)}</td><td class="n">${money(c.deb)}</td><td class="n">${money(c.cred)}</td><td class="n">${money(c.final)}</td><td class="n">${c.itens.length}</td></tr>`;
       if (open) {
-        const fora = state.res.fora.find(f => f.cnpj === c.cnpj);
+        const fora = state.res.fora && state.res.fora.find(f => f.cnpj === c.cnpj);
         const its = c.itens.length ? c.itens : (fora ? fora.itens.map(x => ({ ...x, aberto: x.valor })) : []);
         const obs = c.obs.length ? `<p class="hint" style="margin:0 0 6px">${c.obs.map(esc).join(' ')}</p>` : '';
-        h += `<tr class="notes"><td colspan="8"><div class="notes-in">${obs}${its.length ? `<table><thead><tr><th>Dia</th><th>Histórico</th><th class="n">Em aberto</th><th>Obs</th></tr></thead><tbody>${its.map(x => `<tr class="${x.amarelo ? 'y' : ''} ${x.obs && x.obs.startsWith('APURAR') ? 'a' : ''}"><td class="num">${esc(x.dia)}</td><td>${esc(x.hist)}</td><td class="n">${money(x.aberto)}</td><td>${esc(x.obs)}</td></tr>`).join('')}</tbody></table>` : '<p class="empty" style="margin:0">Sem notas em aberto.</p>'}</div></td></tr>`;
+        const linhasNotas = its.map(x => {
+          const cls = [x.amarelo ? 'y' : '', x.divCred ? 'div-row' : (x.obs && x.obs.startsWith('APURAR') ? 'a' : '')].filter(Boolean).join(' ');
+          return `<tr class="${cls}"><td class="num">${esc(x.dia)}</td><td>${esc(x.hist || (x.nf ? 'NF ' + x.nf : ''))}</td><td class="n">${money(x.aberto)}</td><td>${esc(x.obs)}</td></tr>`;
+        }).join('');
+        h += `<tr class="notes"><td colspan="8"><div class="notes-in">${obs}${its.length ? `<table><thead><tr><th>Dia</th><th>Histórico</th><th class="n">Em aberto</th><th>Obs</th></tr></thead><tbody>${linhasNotas}</tbody></table>` : '<p class="empty" style="margin:0">Sem notas em aberto.</p>'}</div></td></tr>`;
       }
       return h;
     }).join('') || '<tr><td colspan="8" class="empty">Nada neste filtro.</td></tr>';
   }
+
   $('chips').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; state.filtro = b.dataset.s; render(); });
   $('busca').addEventListener('input', e => { state.busca = e.target.value; renderTabela(); });
   const alternar = tr => { const k = tr.dataset.k; state.abertos.has(k) ? state.abertos.delete(k) : state.abertos.add(k); renderTabela(); const n = document.querySelector(`tr.cli[data-k="${CSS.escape(k)}"]`); if (n) n.focus(); };
   $('tbody').addEventListener('click', e => { const tr = e.target.closest('tr.cli'); if (tr) alternar(tr); });
   $('tbody').addEventListener('keydown', e => { const tr = e.target.closest('tr.cli'); if (tr && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); alternar(tr); } });
 
-  /* ---------- download ---------- */
   let downloads = null;
-  // Dentro do Claude o download passa pela capacidade "downloads"; fora dele (GitHub Pages, arquivo local) usa o download comum do navegador.
   const noClaude = !!(window.claude && window.claude.use);
   (async () => { if (!noClaude) return; try { downloads = await window.claude.use('downloads'); } catch (e) { downloads = null; } if (!downloads) $('btnXls').hidden = true; })();
   function baixarDireto(nome, blob) {
@@ -953,7 +1430,7 @@ async function montarExcel(ExcelJS, res, meta) {
       msg.className = 'msg ok'; msg.textContent = 'Excel salvo: ' + nome;
     } catch (e) {
       msg.className = 'msg bad';
-      msg.textContent = e && e.code === 'declined' ? 'Download cancelado.' : e && e.code === 'rate_limited' ? 'Já existe um download aguardando confirmação.' : 'Não consegui gerar o Excel: ' + (e && (e.message || e.code) || e);
+      msg.textContent = e && e.code === 'declined' ? 'Download cancelado.' : e && e.code === 'rate_limited' ? 'Já existe um download aguardando.' : 'Não consegui gerar o Excel: ' + (e && (e.message || e.code) || e);
     } finally { $('btnXls').disabled = false; }
   });
 
@@ -961,5 +1438,4 @@ async function montarExcel(ExcelJS, res, meta) {
 })();
 </script>
 
-</body>
-</html>
+</body></html>

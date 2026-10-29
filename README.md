@@ -2,6 +2,8 @@
 
 JBC Micro Sistemas — conciliação de clientes e fornecedores. Monta a composição nota a nota a partir da composição do ano anterior e do razão auxiliar (Mastermaq), confere os totais e aponta o que precisa ser apurado.
 
+Aceita três cenários: composição por blocos "CLIENTE :"/"FORNECEDOR :" × razão por blocos; composição em lista única (DATA | HISTÓRICO = nº da NF | VALOR) × razão em conta única, cruzando pelo nº da NF no histórico; e conciliação sem composição anterior, partindo do saldo anterior do razão.
+
 Os arquivos são lidos apenas no navegador; nada é enviado a servidor.
 
 Publicado em https://jbccontabil.github.io/conciliador/
